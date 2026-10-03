@@ -726,6 +726,9 @@ function SettingsGroup({
   const [error, setError] =
     React.useState("");
 
+  const [dragIndex, setDragIndex] =
+    React.useState(null);
+
   function addEngineer() {
     const numericId =
       Number(String(id).trim());
@@ -766,6 +769,27 @@ function SettingsGroup({
     setName("");
     setId("");
     setError("");
+  }
+
+  function moveEngineer(fromIndex, toIndex) {
+    if (
+      fromIndex === null ||
+      fromIndex === toIndex
+    ) {
+      setDragIndex(null);
+      return;
+    }
+
+    const next = [...engineers];
+
+    const [moved] =
+      next.splice(fromIndex, 1);
+
+    next.splice(toIndex, 0, moved);
+
+    setEngineers(next);
+    saveEngineerGroup(kind, next);
+    setDragIndex(null);
   }
 
   function removeEngineer(index) {
@@ -815,18 +839,81 @@ function SettingsGroup({
             {
               key:
                 `${engineer.name}-${engineer.id ?? index}`,
+
+              draggable: true,
+
+              onDragStart: event => {
+                setDragIndex(index);
+
+                event.dataTransfer.effectAllowed =
+                  "move";
+
+                event.dataTransfer.setData(
+                  "text/plain",
+                  String(index)
+                );
+              },
+
+              onDragOver: event => {
+                event.preventDefault();
+
+                event.dataTransfer.dropEffect =
+                  "move";
+              },
+
+              onDrop: event => {
+                event.preventDefault();
+
+                const from =
+                  Number(
+                    event.dataTransfer.getData(
+                      "text/plain"
+                    )
+                  );
+
+                moveEngineer(from, index);
+              },
+
+              onDragEnd: () => {
+                setDragIndex(null);
+              },
+
               style: {
                 display: "grid",
                 gridTemplateColumns:
-                  "minmax(160px, 1fr) 100px auto",
+                  "28px minmax(160px, 1fr) 100px auto",
                 gap: "10px",
                 alignItems: "center",
                 padding: "7px 9px",
                 borderRadius: "7px",
                 background:
-                  "rgba(255,255,255,.04)"
+                  dragIndex === index
+                    ? "rgba(255,255,255,.10)"
+                    : "rgba(255,255,255,.04)",
+                opacity:
+                  dragIndex === index
+                    ? ".55"
+                    : "1",
+                cursor: "grab",
+                transition:
+                  "background .12s ease, opacity .12s ease"
               }
             },
+
+            h(
+              "span",
+              {
+                title: "Drag to reorder",
+                style: {
+                  opacity: ".45",
+                  cursor: "grab",
+                  fontSize: "16px",
+                  userSelect: "none",
+                  textAlign: "center"
+                }
+              },
+              "☰"
+            ),
 
             h(
               "span",
