@@ -792,6 +792,53 @@ function SettingsGroup({
     setDragIndex(null);
   }
 
+  function renameEngineer(index, newName, persist = false) {
+    const next = [...engineers];
+
+    next[index] = {
+      ...next[index],
+      name: newName
+    };
+
+    if (!persist) {
+      setEngineers(next);
+      return;
+    }
+
+    const trimmed = newName.trim();
+
+    if (!trimmed) {
+      const stored =
+        kind === "mix"
+          ? storage.mixEngineers
+          : storage.masteringEngineers;
+
+      const fallback =
+        stored?.[index]?.name ||
+        (next[index].id
+          ? `Credits ${next[index].id}`
+          : "Unnamed Engineer");
+
+      next[index] = {
+        ...next[index],
+        name: fallback
+      };
+
+      setEngineers(next);
+      setError("Engineer name cannot be empty.");
+      return;
+    }
+
+    next[index] = {
+      ...next[index],
+      name: trimmed
+    };
+
+    setEngineers(next);
+    saveEngineerGroup(kind, next);
+    setError("");
+  }
+
   function removeEngineer(index) {
     const next =
       engineers.filter(
@@ -838,7 +885,7 @@ function SettingsGroup({
             "div",
             {
               key:
-                `${engineer.name}-${engineer.id ?? index}`,
+                `${engineer.id ?? "auto"}-${index}`,
 
               draggable: true,
 
@@ -916,9 +963,64 @@ function SettingsGroup({
             ),
 
             h(
-              "span",
-              null,
-              engineer.name
+              "input",
+              {
+                value: engineer.name,
+
+                type: "text",
+
+                title: "Edit engineer name",
+
+                draggable: false,
+
+                onDragStart: event => {
+                  event.stopPropagation();
+                },
+
+                onChange: event => {
+                  renameEngineer(
+                    index,
+                    event.target.value,
+                    false
+                  );
+                },
+
+                onBlur: event => {
+                  renameEngineer(
+                    index,
+                    event.target.value,
+                    true
+                  );
+                },
+
+                onKeyDown: event => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  }
+                },
+
+                style: {
+                  boxSizing: "border-box",
+                  width: "100%",
+                  height: "30px",
+                  border:
+                    "1px solid transparent",
+                  borderRadius: "5px",
+                  padding: "0 6px",
+                  background: "transparent",
+                  color: "inherit",
+                  font: "inherit",
+                  outline: "none"
+                },
+
+                onFocus: event => {
+                  event.currentTarget.style.borderColor =
+                    "rgba(255,255,255,.20)";
+
+                  event.currentTarget.style.background =
+                    "rgba(0,0,0,.18)";
+                }
+              }
             ),
 
             h(
