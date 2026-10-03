@@ -1,8 +1,8 @@
 {
   "name": "@enzo/serban-credits",
   "description": "Mixing and mastering engineer Credits library for TIDAL.",
-  "version": "2.0.5",
-  "hash": "engineer-credits-v7",
+  "version": "2.1.0",
+  "hash": "engineer-credits-v8",
   "author": {
     "name": "Enzo"
   }

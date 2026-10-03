@@ -2,42 +2,65 @@ const ROOT_ID = "enzo-engineer-credits";
 
 export const unloads = new Set();
 
+const Core =
+  globalThis.luna?.core?.modules?.["@luna/core"] ??
+  globalThis.luna?.core;
+
+const React =
+  globalThis.luna?.core?.modules?.["react"];
+
+const DEFAULT_MIX_ENGINEERS = [
+  { name: "Serban Ghenea", id: 10470066 },
+  { name: "Manny Marroquin", id: 13393074 },
+  { name: "Mark “Spike” Stent", id: 13459443 },
+  { name: "Andrew Scheps" },
+  { name: "Tom Elmhirst" },
+  { name: "Tchad Blake" },
+  { name: "Jaycen Joshua" },
+  { name: "Alan Moulder" },
+  { name: "Michael Brauer" },
+  { name: "Tony Maserati" }
+];
+
+const DEFAULT_MASTERING_ENGINEERS = [
+  { name: "Randy Merrill" },
+  { name: "Chris Gehringer" },
+  { name: "Emily Lazar" },
+  { name: "Bob Ludwig" },
+  { name: "Bernie Grundman" },
+  { name: "Mike Bozzi" },
+  { name: "Joe LaPorta" },
+  { name: "Heba Kadry" },
+  { name: "Greg Calbi" },
+  { name: "Dale Becker" },
+  { name: "Mike Marsh", id: 8940411 },
+  { name: "Matt Colton", id: 13502114 }
+];
+
+const storage = await Core.ReactiveStore.getPluginStorage(
+  "EngineerCredits",
+  {
+    mixEngineers: DEFAULT_MIX_ENGINEERS,
+    masteringEngineers: DEFAULT_MASTERING_ENGINEERS
+  }
+);
+
 const groups = [
   {
     key: "mix",
     title: "Mix Engineers",
     role: "mix",
-    engineers: [
-      { name: "Serban Ghenea", id: 10470066 },
-      { name: "Manny Marroquin", id: 13393074 },
-      { name: "Mark “Spike” Stent", id: 13459443 },
-      { name: "Andrew Scheps" },
-      { name: "Tom Elmhirst" },
-      { name: "Tchad Blake" },
-      { name: "Jaycen Joshua" },
-      { name: "Alan Moulder" },
-      { name: "Michael Brauer" },
-      { name: "Tony Maserati" }
-    ]
+    get engineers() {
+      return storage.mixEngineers ?? [];
+    }
   },
   {
     key: "mastering",
     title: "Mastering Engineers",
     role: "master",
-    engineers: [
-      { name: "Randy Merrill" },
-      { name: "Chris Gehringer" },
-      { name: "Emily Lazar" },
-      { name: "Bob Ludwig" },
-      { name: "Bernie Grundman" },
-      { name: "Mike Bozzi" },
-      { name: "Joe LaPorta" },
-      { name: "Heba Kadry" },
-      { name: "Greg Calbi" },
-      { name: "Dale Becker" },
-      { name: "Mike Marsh", id: 8940411 },
-      { name: "Matt Colton", id: 13502114 }
-    ]
+    get engineers() {
+      return storage.masteringEngineers ?? [];
+    }
   }
 ];
 
@@ -655,6 +678,353 @@ unloads.add(() => {
 });
 
 update();
+
+
+
+/* --------------------------------------------------
+   Luna plugin settings
+-------------------------------------------------- */
+
+function cloneEngineers(value) {
+  return Array.from(value ?? []).map(item => ({
+    name: String(item.name ?? ""),
+    ...(item.id ? { id: Number(item.id) } : {})
+  }));
+}
+
+function refreshSidebar() {
+  document.getElementById(ROOT_ID)?.remove();
+  addSidebar();
+}
+
+function saveEngineerGroup(kind, engineers) {
+  const clean = cloneEngineers(engineers);
+
+  if (kind === "mix") {
+    storage.mixEngineers = clean;
+  } else {
+    storage.masteringEngineers = clean;
+  }
+
+  refreshSidebar();
+}
+
+function SettingsGroup({
+  title,
+  kind,
+  engineers,
+  setEngineers
+}) {
+  const h = React.createElement;
+
+  const [name, setName] =
+    React.useState("");
+
+  const [id, setId] =
+    React.useState("");
+
+  const [error, setError] =
+    React.useState("");
+
+  function addEngineer() {
+    const numericId =
+      Number(String(id).trim());
+
+    if (
+      !Number.isInteger(numericId) ||
+      numericId <= 0
+    ) {
+      setError("Enter a valid TIDAL Credits ID.");
+      return;
+    }
+
+    if (
+      engineers.some(
+        engineer =>
+          Number(engineer.id) === numericId
+      )
+    ) {
+      setError("That Credits ID is already in this category.");
+      return;
+    }
+
+    const displayName =
+      name.trim() ||
+      `Credits ${numericId}`;
+
+    const next = [
+      ...engineers,
+      {
+        name: displayName,
+        id: numericId
+      }
+    ];
+
+    setEngineers(next);
+    saveEngineerGroup(kind, next);
+
+    setName("");
+    setId("");
+    setError("");
+  }
+
+  function removeEngineer(index) {
+    const next =
+      engineers.filter(
+        (_, i) => i !== index
+      );
+
+    setEngineers(next);
+    saveEngineerGroup(kind, next);
+  }
+
+  return h(
+    "section",
+    {
+      style: {
+        marginBottom: "28px"
+      }
+    },
+
+    h(
+      "h3",
+      {
+        style: {
+          margin: "0 0 12px",
+          fontSize: "16px"
+        }
+      },
+      title
+    ),
+
+    h(
+      "div",
+      {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          marginBottom: "14px"
+        }
+      },
+
+      ...engineers.map(
+        (engineer, index) =>
+          h(
+            "div",
+            {
+              key:
+                `${engineer.name}-${engineer.id ?? index}`,
+              style: {
+                display: "grid",
+                gridTemplateColumns:
+                  "minmax(160px, 1fr) 100px auto",
+                gap: "10px",
+                alignItems: "center",
+                padding: "7px 9px",
+                borderRadius: "7px",
+                background:
+                  "rgba(255,255,255,.04)"
+              }
+            },
+
+            h(
+              "span",
+              null,
+              engineer.name
+            ),
+
+            h(
+              "code",
+              {
+                style: {
+                  opacity: engineer.id
+                    ? ".75"
+                    : ".35"
+                }
+              },
+              engineer.id ?? "auto"
+            ),
+
+            h(
+              "button",
+              {
+                type: "button",
+                onClick: () =>
+                  removeEngineer(index),
+                style: {
+                  border: 0,
+                  borderRadius: "6px",
+                  padding: "6px 9px",
+                  cursor: "pointer",
+                  background:
+                    "rgba(255,70,70,.15)",
+                  color: "#ff8a8a"
+                }
+              },
+              "Remove"
+            )
+          )
+      )
+    ),
+
+    h(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns:
+            "minmax(170px,1fr) 160px auto",
+          gap: "8px",
+          alignItems: "center"
+        }
+      },
+
+      h("input", {
+        value: name,
+        placeholder: "Engineer name (optional)",
+        onChange: event =>
+          setName(event.target.value),
+        style: {
+          boxSizing: "border-box",
+          width: "100%",
+          height: "36px",
+          borderRadius: "6px",
+          border:
+            "1px solid rgba(255,255,255,.15)",
+          padding: "0 10px",
+          background:
+            "rgba(0,0,0,.20)",
+          color: "inherit"
+        }
+      }),
+
+      h("input", {
+        value: id,
+        placeholder: "Credits ID",
+        inputMode: "numeric",
+        onChange: event =>
+          setId(event.target.value),
+        onKeyDown: event => {
+          if (event.key === "Enter") {
+            addEngineer();
+          }
+        },
+        style: {
+          boxSizing: "border-box",
+          width: "100%",
+          height: "36px",
+          borderRadius: "6px",
+          border:
+            "1px solid rgba(255,255,255,.15)",
+          padding: "0 10px",
+          background:
+            "rgba(0,0,0,.20)",
+          color: "inherit"
+        }
+      }),
+
+      h(
+        "button",
+        {
+          type: "button",
+          onClick: addEngineer,
+          style: {
+            height: "36px",
+            border: 0,
+            borderRadius: "6px",
+            padding: "0 15px",
+            cursor: "pointer",
+            fontWeight: "600"
+          }
+        },
+        "Add"
+      )
+    ),
+
+    error
+      ? h(
+          "div",
+          {
+            style: {
+              marginTop: "8px",
+              color: "#ff8a8a",
+              fontSize: "12px"
+            }
+          },
+          error
+        )
+      : null
+  );
+}
+
+export const Settings = () => {
+  if (!React) {
+    return "React module unavailable.";
+  }
+
+  const h = React.createElement;
+
+  const [mixEngineers, setMixEngineers] =
+    React.useState(
+      () =>
+        cloneEngineers(
+          storage.mixEngineers
+        )
+    );
+
+  const [
+    masteringEngineers,
+    setMasteringEngineers
+  ] =
+    React.useState(
+      () =>
+        cloneEngineers(
+          storage.masteringEngineers
+        )
+    );
+
+  return h(
+    "div",
+    {
+      style: {
+        padding:
+          "8px 4px 4px",
+        maxWidth: "900px"
+      }
+    },
+
+    h(
+      "p",
+      {
+        style: {
+          marginTop: 0,
+          opacity: ".7",
+          fontSize: "13px"
+        }
+      },
+      "Add or remove TIDAL engineer Credits profiles. " +
+      "The Credits ID is the number at the end of a TIDAL URL such as /credits/10470066."
+    ),
+
+    h(SettingsGroup, {
+      title: "Mix Engineers",
+      kind: "mix",
+      engineers: mixEngineers,
+      setEngineers:
+        setMixEngineers
+    }),
+
+    h(SettingsGroup, {
+      title: "Mastering Engineers",
+      kind: "mastering",
+      engineers:
+        masteringEngineers,
+      setEngineers:
+        setMasteringEngineers
+    })
+  );
+};
 
 console.log(
   "[Engineer Credits] v2 loaded"
